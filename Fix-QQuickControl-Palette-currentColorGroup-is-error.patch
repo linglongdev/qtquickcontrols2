@@ -1,0 +1,182 @@
+Author: Duan Ting <duanting@uniontech.com>
+Date:   Dec Mon 12 16:26:18 2022 +0800
+Subject: QQuickControl: Palette's currentColorGroup is error
+Upstream: https://codereview.qt-project.org/c/qt/qtquickcontrols2/+/447730
+---
+
+Index: qtquickcontrols2-opensource-src/src/quicktemplates2/qquickcontrol.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/quicktemplates2/qquickcontrol.cpp
++++ qtquickcontrols2-opensource-src/src/quicktemplates2/qquickcontrol.cpp
+@@ -1798,6 +1798,8 @@ QPalette QQuickControl::palette() const
+     palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
++    else
++        palette.setCurrentColorGroup(window() && window()->isActive() ? QPalette::Active : QPalette::Inactive);
+     return palette;
+ }
+ 
+Index: qtquickcontrols2-opensource-src/src/quicktemplates2/qquicklabel.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/quicktemplates2/qquicklabel.cpp
++++ qtquickcontrols2-opensource-src/src/quicktemplates2/qquicklabel.cpp
+@@ -450,6 +450,8 @@ QPalette QQuickLabel::palette() const
+     palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
++    else
++        palette.setCurrentColorGroup(window() && window()->isActive() ? QPalette::Active : QPalette::Inactive);
+     return palette;
+ }
+ 
+Index: qtquickcontrols2-opensource-src/src/quicktemplates2/qquicktextarea.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/quicktemplates2/qquicktextarea.cpp
++++ qtquickcontrols2-opensource-src/src/quicktemplates2/qquicktextarea.cpp
+@@ -850,6 +850,8 @@ QPalette QQuickTextArea::palette() const
+     palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
++    else
++        palette.setCurrentColorGroup(window() && window()->isActive() ? QPalette::Active : QPalette::Inactive);
+     return palette;
+ }
+ 
+Index: qtquickcontrols2-opensource-src/src/quicktemplates2/qquicktextfield.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/quicktemplates2/qquicktextfield.cpp
++++ qtquickcontrols2-opensource-src/src/quicktemplates2/qquicktextfield.cpp
+@@ -695,6 +695,8 @@ QPalette QQuickTextField::palette() cons
+     palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
++    else
++        palette.setCurrentColorGroup(window() && window()->isActive() ? QPalette::Active : QPalette::Inactive);
+     return palette;
+ }
+ 
+Index: qtquickcontrols2-opensource-src/tests/auto/palette/data/palette-control-enabled.qml
+===================================================================
+--- /dev/null
++++ qtquickcontrols2-opensource-src/tests/auto/palette/data/palette-control-enabled.qml
+@@ -0,0 +1,72 @@
++/****************************************************************************
++**
++** Copyright (C) 2022 yeshanshan <yeshanshan@uniontech.com>.
++** Contact: https://www.qt.io/licensing/
++**
++** This file is part of the test suite of the Qt Toolkit.
++**
++** $QT_BEGIN_LICENSE:BSD$
++** Commercial License Usage
++** Licensees holding valid commercial Qt licenses may use this file in
++** accordance with the commercial license agreement provided with the
++** Software or, alternatively, in accordance with the terms contained in
++** a written agreement between you and The Qt Company. For licensing terms
++** and conditions see https://www.qt.io/terms-conditions. For further
++** information use the contact form at https://www.qt.io/contact-us.
++**
++** BSD License Usage
++** Alternatively, you may use this file under the terms of the BSD license
++** as follows:
++**
++** "Redistribution and use in source and binary forms, with or without
++** modification, are permitted provided that the following conditions are
++** met:
++**   * Redistributions of source code must retain the above copyright
++**     notice, this list of conditions and the following disclaimer.
++**   * Redistributions in binary form must reproduce the above copyright
++**     notice, this list of conditions and the following disclaimer in
++**     the documentation and/or other materials provided with the
++**     distribution.
++**   * Neither the name of The Qt Company Ltd nor the names of its
++**     contributors may be used to endorse or promote products derived
++**     from this software without specific prior written permission.
++**
++**
++** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
++**
++** $QT_END_LICENSE$
++**
++****************************************************************************/
++
++import QtQuick 2.10
++import QtQuick.Controls 2.3
++
++ApplicationWindow {
++    visible: true
++    width: 640
++    height: 480
++
++    property alias control: control
++
++    Control {
++        id: control
++        Component.onCompleted: {
++            palette.windowText = palette.highlight
++        }
++
++        onPaletteChanged: {
++            // palette.highlight's value is alwayse disable group's highlight instead of normal's highlight
++            palette.windowText = palette.highlight
++        }
++    }
++}
+Index: qtquickcontrols2-opensource-src/tests/auto/palette/tst_palette.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/tests/auto/palette/tst_palette.cpp
++++ qtquickcontrols2-opensource-src/tests/auto/palette/tst_palette.cpp
+@@ -67,6 +67,8 @@ private slots:
+ 
+     void listView_data();
+     void listView();
++
++    void controlEnabledChanged();
+ };
+ 
+ void tst_palette::initTestCase()
+@@ -345,6 +347,33 @@ void tst_palette::listView()
+     QCOMPARE(control->property("palette").value<QPalette>().color(QPalette::Highlight), QColor(Qt::red));
+ }
+ 
++void tst_palette::controlEnabledChanged()
++{
++    QQmlEngine engine;
++    QQmlComponent component(&engine);
++    component.loadUrl(testFileUrl("palette-control-enabled.qml"));
++
++    QScopedPointer<QQuickApplicationWindow> window(qobject_cast<QQuickApplicationWindow *>(component.create()));
++    QVERIFY2(!window.isNull(), qPrintable(component.errorString()));
++
++    window->show();
++    QVERIFY(QTest::qWaitForWindowActive(window.data()));
++
++    QQuickItem *contentItem = window->property("control").value<QQuickItem *>();
++    QVERIFY(contentItem);
++
++    const QPalette enabledPalette = contentItem->property("palette").value<QPalette>();
++    QCOMPARE(enabledPalette.color(QPalette::Highlight), enabledPalette.color(QPalette::WindowText));
++    contentItem->setEnabled(false);
++
++    const QPalette disabledPalette = contentItem->property("palette").value<QPalette>();
++    QCOMPARE(disabledPalette.color(QPalette::Highlight), disabledPalette.color(QPalette::WindowText));
++
++    contentItem->setEnabled(true);
++
++    QCOMPARE(contentItem->property("palette").value<QPalette>().color(QPalette::Highlight), enabledPalette.color(QPalette::Highlight));
++}
++
+ QTEST_MAIN(tst_palette)
+ 
+ #include "tst_palette.moc"

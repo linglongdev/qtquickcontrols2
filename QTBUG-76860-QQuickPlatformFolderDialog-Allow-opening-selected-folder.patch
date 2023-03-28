@@ -1,0 +1,33 @@
+Author: Duan Ting <duanting@uniontech.com>
+Date:   Thu June 22 11:14:18 2022 +0800
+Subject: QQuickPlatformFolderDialog: Allow opening selected folder
+Upstream: https://codereview.qt-project.org/c/qt/qtquickcontrols2/+/365273
+---
+
+Index: qtquickcontrols2-opensource-src/src/imports/platform/qquickplatformfolderdialog.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/imports/platform/qquickplatformfolderdialog.cpp
++++ qtquickcontrols2-opensource-src/src/imports/platform/qquickplatformfolderdialog.cpp
+@@ -142,8 +142,12 @@ void QQuickPlatformFolderDialog::setFold
+ */
+ QUrl QQuickPlatformFolderDialog::currentFolder() const
+ {
+-    if (QPlatformFileDialogHelper *fileDialog = qobject_cast<QPlatformFileDialogHelper *>(handle()))
++    if (QPlatformFileDialogHelper *fileDialog = qobject_cast<QPlatformFileDialogHelper *>(handle())) {
++        const QList<QUrl> selectedFiles = fileDialog->selectedFiles();
++        if (!selectedFiles.isEmpty())
++            return selectedFiles.first();
+         return fileDialog->directory();
++    }
+     return m_options->initialDirectory();
+ }
+ 
+@@ -260,7 +264,7 @@ bool QQuickPlatformFolderDialog::useNati
+ void QQuickPlatformFolderDialog::onCreate(QPlatformDialogHelper *dialog)
+ {
+     if (QPlatformFileDialogHelper *fileDialog = qobject_cast<QPlatformFileDialogHelper *>(dialog)) {
+-        connect(fileDialog, &QPlatformFileDialogHelper::directoryEntered, this, &QQuickPlatformFolderDialog::currentFolderChanged);
++        connect(fileDialog, &QPlatformFileDialogHelper::currentChanged, this, &QQuickPlatformFolderDialog::currentFolderChanged);
+         fileDialog->setOptions(m_options);
+     }
+ }

@@ -1,0 +1,188 @@
+From b9491fbc06a3ac3324291d3330d28fc7cb50488d Mon Sep 17 00:00:00 2001
+From: JiDe Zhang <zhangjide@uniontech.com>
+Date: Mon, 7 Mar 2022 16:25:07 +0800
+Subject: [PATCH] Fix the Control can't inherit the palette/font from parent
+
+The QQuickControl::palette and QQuickControl::font is return the
+resolved value, it's resolve mask is inherit from parent object, when
+the return value is used in the qml, for a example:
+
+ApplicationWindow {
+    id: window
+    palette {window: "blue"; windowText: "blue"}
+
+    Control {
+        id: control
+    }
+
+    Button {
+        onClicked: {
+            control.palette.window = "red"
+            window.palette.windowText = "red"
+            console.log(control.palette.windowText)
+        }
+    }
+}
+
+When clicked the button, the "control.palette" is the "resolvedPalette"
+of Control, it's resolve mask is not 0, next assignment the new value
+to the control, then the control's "requestedPalette" will change to the
+new value and it's resolve mask also is not 0. Next,
+'window.palette.windowText = "red"' change the "windowText" palette for
+the window, next will call the QQuickControlPrivate::inheritPalette,
+because the resolve mask of "requestedPalette" is equal to the new
+palette, the control will not inherit any colors from it's parent. So
+the "console.log(control.palette.windowText)" is print "qml: #0000ff",
+the right result is "qml: #ff0000".
+
+Fixes: QTBUG-101480
+Change-Id: Ie9873b1241a088a9f57a4bcd6d184cce1e4efcd8
+---
+ src/quicktemplates2/qquickcontrol.cpp   | 23 ++++++++++++++---------
+ src/quicktemplates2/qquicklabel.cpp     |  8 +++++++-
+ src/quicktemplates2/qquicktextarea.cpp  |  8 +++++++-
+ src/quicktemplates2/qquicktextfield.cpp |  8 +++++++-
+ 4 files changed, 35 insertions(+), 12 deletions(-)
+
+diff --git a/src/quicktemplates2/qquickcontrol.cpp b/src/quicktemplates2/qquickcontrol.cpp
+index bbbd0e622..67423fb2b 100644
+--- a/src/quicktemplates2/qquickcontrol.cpp
++++ b/src/quicktemplates2/qquickcontrol.cpp
+@@ -518,13 +518,13 @@ QFont QQuickControlPrivate::parentFont(const QQuickItem *item)
+     QQuickItem *p = item->parentItem();
+     while (p) {
+         if (QQuickControl *control = qobject_cast<QQuickControl *>(p))
+-            return control->font();
++            return QQuickControlPrivate::get(control)->resolvedFont;
+         else if (QQuickLabel *label = qobject_cast<QQuickLabel *>(p))
+-            return label->font();
++            return label->QQuickText::font();
+         else if (QQuickTextField *textField = qobject_cast<QQuickTextField *>(p))
+-            return textField->font();
++            return textField->QQuickTextInput::font();
+         else if (QQuickTextArea *textArea = qobject_cast<QQuickTextArea *>(p))
+-            return textArea->font();
++            return textArea->QQuickTextEdit::font();
+ 
+         p = p->parentItem();
+     }
+@@ -615,13 +615,13 @@ QPalette QQuickControlPrivate::parentPalette(const QQuickItem *item)
+     QQuickItem *p = item->parentItem();
+     while (p) {
+         if (QQuickControl *control = qobject_cast<QQuickControl *>(p))
+-            return control->palette();
++            return QQuickControlPrivate::get(control)->resolvedPalette;
+         else if (QQuickLabel *label = qobject_cast<QQuickLabel *>(p))
+-            return label->palette();
++            return QQuickLabelPrivate::get(label)->resolvedPalette;
+         else if (QQuickTextField *textField = qobject_cast<QQuickTextField *>(p))
+-            return textField->palette();
++            return QQuickTextFieldPrivate::get(textField)->resolvedPalette;
+         else if (QQuickTextArea *textArea = qobject_cast<QQuickTextArea *>(p))
+-            return textArea->palette();
++            return QQuickTextAreaPrivate::get(textArea)->resolvedPalette;
+ 
+         p = p->parentItem();
+     }
+@@ -1054,7 +1054,10 @@ void QQuickControl::itemChange(QQuickItem::ItemChange change, const QQuickItem::
+ QFont QQuickControl::font() const
+ {
+     Q_D(const QQuickControl);
+-    return d->resolvedFont;
++    QFont font = d->resolvedFont;
++    // The resolve mask should inherit from the requestedFont
++    font.resolve(d->extra.value().requestedFont.resolve());
++    return font;
+ }
+ 
+ void QQuickControl::setFont(const QFont &font)
+@@ -1761,6 +1764,8 @@ QPalette QQuickControl::palette() const
+ {
+     Q_D(const QQuickControl);
+     QPalette palette = d->resolvedPalette;
++    // The resolve mask should inherit from the requestedPalette
++    palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
+     return palette;
+diff --git a/src/quicktemplates2/qquicklabel.cpp b/src/quicktemplates2/qquicklabel.cpp
+index 71b60a2bc..bfd398bc0 100644
+--- a/src/quicktemplates2/qquicklabel.cpp
++++ b/src/quicktemplates2/qquicklabel.cpp
+@@ -355,7 +355,11 @@ QQuickLabel::~QQuickLabel()
+ 
+ QFont QQuickLabel::font() const
+ {
+-    return QQuickText::font();
++    Q_D(const QQuickLabel);
++    QFont font = QQuickText::font();
++    // The resolve mask should inherit from the requestedFont
++    font.resolve(d->extra.value().requestedFont.resolve());
++    return font;
+ }
+ 
+ void QQuickLabel::setFont(const QFont &font)
+@@ -442,6 +446,8 @@ QPalette QQuickLabel::palette() const
+ {
+     Q_D(const QQuickLabel);
+     QPalette palette = d->resolvedPalette;
++    // The resolve mask should inherit from the requestedPalette
++    palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
+     return palette;
+diff --git a/src/quicktemplates2/qquicktextarea.cpp b/src/quicktemplates2/qquicktextarea.cpp
+index d0a08c475..30cb40bfe 100644
+--- a/src/quicktemplates2/qquicktextarea.cpp
++++ b/src/quicktemplates2/qquicktextarea.cpp
+@@ -595,7 +595,11 @@ QQuickTextAreaAttached *QQuickTextArea::qmlAttachedProperties(QObject *object)
+ 
+ QFont QQuickTextArea::font() const
+ {
+-    return QQuickTextEdit::font();
++    Q_D(const QQuickTextArea);
++    QFont font = QQuickTextEdit::font();
++    // The resolve mask should inherit from the requestedFont
++    font.resolve(d->extra.value().requestedFont.resolve());
++    return font;
+ }
+ 
+ void QQuickTextArea::setFont(const QFont &font)
+@@ -838,6 +842,8 @@ QPalette QQuickTextArea::palette() const
+ {
+     Q_D(const QQuickTextArea);
+     QPalette palette = d->resolvedPalette;
++    // The resolve mask should inherit from the requestedPalette
++    palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
+     return palette;
+diff --git a/src/quicktemplates2/qquicktextfield.cpp b/src/quicktemplates2/qquicktextfield.cpp
+index 8fa04bd3a..be56dedd1 100644
+--- a/src/quicktemplates2/qquicktextfield.cpp
++++ b/src/quicktemplates2/qquicktextfield.cpp
+@@ -455,7 +455,11 @@ QQuickTextField::~QQuickTextField()
+ 
+ QFont QQuickTextField::font() const
+ {
+-    return QQuickTextInput::font();
++    Q_D(const QQuickTextField);
++    QFont font = QQuickTextInput::font();
++    // The resolve mask should inherit from the requestedFont
++    font.resolve(d->extra.value().requestedFont.resolve());
++    return font;
+ }
+ 
+ void QQuickTextField::setFont(const QFont &font)
+@@ -687,6 +691,8 @@ QPalette QQuickTextField::palette() const
+ {
+     Q_D(const QQuickTextField);
+     QPalette palette = d->resolvedPalette;
++    // The resolve mask should inherit from the requestedPalette
++    palette.resolve(d->extra.value().requestedPalette.resolve());
+     if (!isEnabled())
+         palette.setCurrentColorGroup(QPalette::Disabled);
+     return palette;
+-- 
+2.35.1
+

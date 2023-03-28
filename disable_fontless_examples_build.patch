@@ -1,0 +1,27 @@
+Description: disable examples using fontello fonts.
+ There are two examples using the embedded fontello font. As the fonts is not
+ in it's preferred form of modification we needed to remove them. Also the
+ fonts are not letters, so they can not be replaced with another one.
+ .
+ So we disable the build of this to examples.
+Author: Lisandro Damián Nicanor Pérez Meyer <lisandro@debian.org>
+Bug-Debian: https://bugs.debian.org/900855
+Forwarded: not-needed
+
+---
+ examples/quickcontrols2/quickcontrols2.pro |    2 --
+ 1 file changed, 2 deletions(-)
+
+--- a/examples/quickcontrols2/quickcontrols2.pro
++++ b/examples/quickcontrols2/quickcontrols2.pro
+@@ -2,10 +2,8 @@ TEMPLATE = subdirs
+ SUBDIRS += \
+     gallery \
+     chattutorial \
+-    texteditor \
+     contactlist \
+     sidepanel \
+-    swipetoremove \
+     wearable \
+     imagine/automotive \
+     imagine/musicplayer

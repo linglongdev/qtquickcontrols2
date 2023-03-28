@@ -1,0 +1,36 @@
+Author: Duan Ting <duanting@uniontech.com>
+Date:   Tue Jan 3 10:50:18 2023 +0800
+Subject: Fix the abnormal state of button hover on the touch screen
+---
+
+Index: qtquickcontrols2-opensource-src/src/quicktemplates2/qquickabstractbutton.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/quicktemplates2/qquickabstractbutton.cpp
++++ qtquickcontrols2-opensource-src/src/quicktemplates2/qquickabstractbutton.cpp
+@@ -1043,6 +1043,10 @@ bool QQuickAbstractButton::event(QEvent
+         }
+     }
+ #endif
++
++    if (event->type() == QEvent::HoverMove)
++        return true;    
++
+     return QQuickControl::event(event);
+ }
+ 
+Index: qtquickcontrols2-opensource-src/src/quicktemplates2/qquickcontrol.cpp
+===================================================================
+--- qtquickcontrols2-opensource-src.orig/src/quicktemplates2/qquickcontrol.cpp
++++ qtquickcontrols2-opensource-src/src/quicktemplates2/qquickcontrol.cpp
+@@ -2214,8 +2214,10 @@ void QQuickControl::touchEvent(QTouchEve
+             case Qt::TouchPointMoved:
+                 d->handleMove(point.pos());
+                 break;
+-            case Qt::TouchPointReleased:
++            case Qt::TouchPointReleased: {
++                setHovered(false);
+                 d->handleRelease(point.pos());
++            }
+                 break;
+             default:
+                 break;

@@ -1,0 +1,33 @@
+package:
+  id: qtquickcontrols2
+  kind: lib
+  version: 5.11.3
+
+base:
+  id: org.deepin.base
+  version: 20.5.0
+
+depends:
+- id: qtbase
+  version: 5.11.3.15
+- id: qtdeclarative
+  version: 5.11.3
+
+source:
+  kind: git
+  url: https://github.com/deepin-community/qtquickcontrols2-opensource-src.git
+  version: uos/5.11.3
+  commit: e64e358d0aca9c0df779ee0af85c068878fec062
+  patch:
+  - 0001-Unset-mouseGrabberPopup-if-it-s-removed-from-childre.patch
+  - 0002-Ensure-we-don-t-crash-when-changing-sizes-after-clea.patch
+  - 0003-QQuickAction-don-t-grab-the-same-shortcut-multiple-t.patch
+  - 0004-QQuickAbstractButton-fix-crash-on-destruction.patch
+  - 0006-Fix-scroll-bars-not-showing-up-when-binding-to-stand.patch
+  - disable_fontless_examples_build.patch
+  - QTBUG-101480-Fix-controls-not-inheriting-palette-from-parent.patch
+  - QTBUG-76860-QQuickPlatformFolderDialog-Allow-opening-selected-folder.patch
+  - Fix-QQuickControl-Palette-currentColorGroup-is-error.patch
+  - Fix-the-abnormal-state-of-button-hover-on-the-touch-screen.patch
+build:
+  kind: qmake
